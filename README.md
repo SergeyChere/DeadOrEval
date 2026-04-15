@@ -25,12 +25,15 @@ DeadOrEval measures **reliability** — can you trust it in production on week 1
 # Pull judge model
 ollama pull llama3.2:3b
 
-# Clone and run
+# Clone 
 git clone https://github.com/SergeyChere/DeadOrEval.git
 cd DeadOrEval
-mvn package
-java -jar target/dead-or-eval.jar
-```
+
+# Build
+mvn install
+
+# Run
+java -jar cli/target/doe.jar --config app.yaml
 
 ## Example Output
 
@@ -52,12 +55,25 @@ Wrong   (<=0.1):  0
 | GPT-4o | Cloud (OpenAI) | Paid |
 | Gemini | Cloud (Google) | Paid |
 
+## CLI Usage
+
+```bash
+doe --config app.yaml
+doe --config app.yaml --runs 1000
+doe --config app.yaml --judges ollama,openai
+doe --config app.yaml --metrics accuracy,consistency,hallucination
+doe --config app.yaml --report html
+doe --config app.yaml --threshold 0.8
+doe --config app.yaml --verbose
+doe --version
+```
+
 ## Roadmap
 
 - [ ] YAML config support - in progress
 - [ ] Multiple judges consensus - in progress
 - [ ] HTML report generation - in progress
-- [ ] CLI tool (doe) - in progress
+- [ ] CLI tool (doe)
 - [ ] CI/CD integration - in progress
 
 ## License
