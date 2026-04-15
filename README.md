@@ -1,6 +1,6 @@
-# 🔫 DeadOrEval
+# DeadOrEval
 
-> Is your chatbot **dead or alive**? Find out with one command.
+> Is your chatbot dead or alive? Find out with one command.
 
 DeadOrEval is a local-first LLM evaluation framework for testing chatbots and AI agents.
 No API keys. No cloud. No cost. Just point it at your chatbot and get a reliability report.
@@ -12,7 +12,7 @@ DeadOrEval measures **reliability** — can you trust it in production on week 1
 
 ## How it works
 
-1. You provide a **context**, a **question**, and a **chatbot answer**
+1. You provide a context, a question, and a chatbot answer
 2. DeadOrEval sends it to a local judge model thousands of times
 3. You get a report showing consistency, accuracy and failure rate
 
@@ -25,15 +25,27 @@ DeadOrEval measures **reliability** — can you trust it in production on week 1
 # Pull judge model
 ollama pull llama3.2:3b
 
-# Clone 
+# Clone and build
 git clone https://github.com/SergeyChere/DeadOrEval.git
 cd DeadOrEval
-
-# Build
-mvn install
+mvn clean install
 
 # Run
 java -jar cli/target/doe.jar --config app.yaml
+```
+
+## CLI Usage
+
+```bash
+java -jar cli/target/doe.jar --config app.yaml
+java -jar cli/target/doe.jar --config app.yaml --runs 1000
+java -jar cli/target/doe.jar --config app.yaml --judges ollama,openai
+java -jar cli/target/doe.jar --config app.yaml --metrics accuracy,consistency,hallucination
+java -jar cli/target/doe.jar --config app.yaml --report html
+java -jar cli/target/doe.jar --config app.yaml --threshold 0.8
+java -jar cli/target/doe.jar --config app.yaml --verbose
+java -jar cli/target/doe.jar --version
+```
 
 ## Example Output
 
@@ -46,35 +58,44 @@ Max score:        1.0
 Perfect (>=0.9):  743
 Wrong   (<=0.1):  0
 
+## Metrics
+
+| Metric | Description | Status |
+|--------|-------------|--------|
+| accuracy | Is the answer correct? | in progress |
+| consistency | Are answers stable across N runs? | in progress |
+| hallucination | Does the chatbot make up facts? | in progress |
+| incident | Logs every failure below threshold | in progress |
+
 ## Supported Judges
 
-| Judge | Type | Cost |
-|-------|------|------|
-| llama3.2:3b | Local (Ollama) | Free |
-| tinyllama | Local (Ollama) | Free |
-| GPT-4o | Cloud (OpenAI) | Paid |
-| Gemini | Cloud (Google) | Paid |
+| Judge | Type | Cost | Status |
+|-------|------|------|--------|
+| llama3.2:3b | Local (Ollama) | Free | in progress |
+| GPT-4o | Cloud (OpenAI) | Paid | planned |
+| Gemini | Cloud (Google) | Paid | planned |
 
-## CLI Usage
-
-```bash
-doe --config app.yaml
-doe --config app.yaml --runs 1000
-doe --config app.yaml --judges ollama,openai
-doe --config app.yaml --metrics accuracy,consistency,hallucination
-doe --config app.yaml --report html
-doe --config app.yaml --threshold 0.8
-doe --config app.yaml --verbose
-doe --version
-```
+## Architecture
+dead-or-eval/
+├── core/       — interfaces and models
+├── config/     — YAML parsing
+├── judge/      — judge implementations
+├── metrics/    — metric implementations
+├── engine/     — eval orchestration
+├── reporter/   — console and HTML reports
+└── cli/        — entry point
 
 ## Roadmap
 
-- [ ] YAML config support - in progress
-- [ ] Multiple judges consensus - in progress
-- [ ] HTML report generation - in progress
-- [ ] CLI tool (doe)
-- [ ] CI/CD integration - in progress
+- [x] Multi-module Maven architecture
+- [x] CLI with picocli
+- [ ] YAML config support
+- [ ] Ollama judge implementation
+- [ ] Accuracy, Consistency, Hallucination, Incident metrics
+- [ ] HTML report generation
+- [ ] Multiple judges consensus
+- [ ] CI/CD integration
+- [ ] GraalVM native binary
 
 ## License
 
