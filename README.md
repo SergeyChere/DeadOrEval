@@ -76,14 +76,18 @@ Wrong   (<=0.1):  0
 | Gemini | Cloud (Google) | Paid | planned |
 
 ## Architecture
-dead-or-eval/
-├── core/       — interfaces and models
-├── config/     — YAML parsing
-├── judge/      — judge implementations
-├── metrics/    — metric implementations
-├── engine/     — eval orchestration
-├── reporter/   — console and HTML reports
-└── cli/        — entry point
+
+```mermaid
+graph TD
+    cli --> engine
+    engine --> judge
+    engine --> metrics
+    engine --> reporter
+    judge --> core
+    metrics --> core
+    reporter --> core
+    config --> core
+```
 
 ## Roadmap
 
