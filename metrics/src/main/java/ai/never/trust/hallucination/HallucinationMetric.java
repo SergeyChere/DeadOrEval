@@ -1,7 +1,28 @@
 package ai.never.trust.hallucination;
 
-import ai.never.trust.Metric;
+import java.util.List;
 
-public class HallucinationMetric implements Metric{
+import ai.never.trust.interfaces.Metric;
+import ai.never.trust.model.EvalResult;
+import ai.never.trust.model.MetricScore;
 
+public class HallucinationMetric implements Metric {
+
+    @Override
+    public MetricScore calculate(List<EvalResult> results) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'calculate'");
+    }
+
+    @Override
+    public String getName() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getName'");
+    }
+
+    @Override
+    public String getDescription() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getDescription'");
+    }
 }
