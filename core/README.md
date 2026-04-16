@@ -42,6 +42,25 @@ tests:
       hallucination: 0.95
 ```
 
+## Target
+
+Defines how DeadOrEval connects to the agent being tested.
+
+```yaml
+target:
+  url: "https://my-dental-bot.com/api/chat"
+  method: "POST"
+  headers:
+    Authorization: "Bearer token"
+    Content-Type: "application/json"
+```
+
+| Field     | Description                              | Example                        |
+|-----------|------------------------------------------|--------------------------------|
+| `url`     | Endpoint URL of the agent under test     | https://my-bot.com/api/chat    |
+| `method`  | HTTP method used to send requests        | POST                           |
+| `headers` | Additional HTTP headers if required      | Authorization: Bearer token    |
+
 ## How Scenario and TestCase work together
 
 ## How Scenario and TestCase work together
