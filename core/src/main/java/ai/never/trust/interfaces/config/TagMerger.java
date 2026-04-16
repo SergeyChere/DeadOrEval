@@ -1,8 +1,9 @@
-package ai.never.trust.interfaces;
+package ai.never.trust.interfaces.config;
 
-import ai.never.trust.model.JudgeOutput;
 import java.util.List;
 import java.util.Map;
+
+import ai.never.trust.model.result.JudgeOutput;
 
 public interface TagMerger {
     Map<String, Double> merge(List<JudgeOutput> outputs);

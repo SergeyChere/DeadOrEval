@@ -1,8 +1,9 @@
-package ai.never.trust.interfaces;
+package ai.never.trust.interfaces.judge;
 
-import ai.never.trust.model.WarmupQuestion;
 import java.util.List;
 import java.util.Map;
+
+import ai.never.trust.model.warmup.WarmupQuestion;
 
 public interface WarmupStrategy {
     List<WarmupQuestion> getQuestions();

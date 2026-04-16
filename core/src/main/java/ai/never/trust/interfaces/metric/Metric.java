@@ -1,7 +1,8 @@
-package ai.never.trust.interfaces;
+package ai.never.trust.interfaces.metric;
 
-import ai.never.trust.model.EvalResult;
-import ai.never.trust.model.MetricScore;
+import ai.never.trust.model.result.EvalResult;
+import ai.never.trust.model.result.MetricScore;
+
 import java.util.List;
 
 public interface Metric {
