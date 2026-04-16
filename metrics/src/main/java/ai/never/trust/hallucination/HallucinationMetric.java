@@ -2,9 +2,9 @@ package ai.never.trust.hallucination;
 
 import java.util.List;
 
-import ai.never.trust.interfaces.Metric;
-import ai.never.trust.model.EvalResult;
-import ai.never.trust.model.MetricScore;
+import ai.never.trust.interfaces.metric.Metric;
+import ai.never.trust.model.result.EvalResult;
+import ai.never.trust.model.result.MetricScore;
 
 public class HallucinationMetric implements Metric {
 
