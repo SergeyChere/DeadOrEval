@@ -1,6 +1,8 @@
-package ai.never.trust.model;
+package ai.never.trust.model.result;
 
 import java.util.Map;
+
+import ai.never.trust.model.test.TestCase;
 
 public record EvalResult(
     TestCase testCase,

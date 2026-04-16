@@ -1,4 +1,4 @@
-package ai.never.trust.model;
+package ai.never.trust.model.config;
 
 public record JudgeConfig(
     String type,

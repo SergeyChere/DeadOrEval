@@ -1,4 +1,4 @@
-package ai.never.trust.model;
+package ai.never.trust.model.result;
 
 import java.util.List;
 import java.util.Map;

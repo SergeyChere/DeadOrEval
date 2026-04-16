@@ -1,4 +1,4 @@
-package ai.never.trust.model;
+package ai.never.trust.model.result;
 
 import java.time.LocalDateTime;
 import java.util.List;

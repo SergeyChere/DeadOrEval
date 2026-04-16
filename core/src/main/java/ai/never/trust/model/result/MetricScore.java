@@ -1,4 +1,4 @@
-package ai.never.trust.model;
+package ai.never.trust.model.result;
 
 public record MetricScore(
     String metricName,
