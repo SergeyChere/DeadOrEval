@@ -23,11 +23,6 @@ suite:
     - "configs/cancellation-flow.yaml"
 ```
 
-**Run overnight:**
-```bash
-doe suite --config suite.yaml
-```
-
 ---
 
 ### EvalConfig
@@ -99,7 +94,7 @@ tests:
 Defines how DeadOrEval connects to the agent being tested.
 
 ```yaml
-target:
+testedAgent:
   url: "https://my-dental-bot.com/api/chat"
   method: "POST"
   headers:
@@ -139,6 +134,28 @@ judges:
 
 ---
 
+### MetricConfig
+Defines which metrics to calculate during evaluation.
+
+```yaml
+metrics:
+  - accuracy
+  - consistency
+  - hallucination
+  - incident_tracking
+```
+
+| Value               | Description                                          |
+|---------------------|------------------------------------------------------|
+| `accuracy`          | Measures correctness of agent responses              |
+| `consistency`       | Measures stability of responses across multiple runs |
+| `hallucination`     | Detects fabricated information not in context        |
+| `incident_tracking` | Tracks responses that fall below acceptable score    |
+
+To add a custom metric, implement the `Metric` interface in the `metrics` module.
+
+---
+
 ### ReportConfig
 Defines how evaluation results are reported.
 
@@ -152,22 +169,6 @@ report:
 | `type` | Type of report: `console`, `html`, `json`, `pdf` |
 
 ---
-
-## Domain Models
-
-### Scenario
-Represents a reusable evaluation scenario.
-Loaded once and referenced by multiple test cases.
-
-```yaml
-scenarios:
-  - name: "indecisive-client"
-    description: "A difficult client called who cannot decide
-                  which day to schedule their appointment."
-
-  - name: "angry-client"  
-    description: "An angry client called demanding immediate appointment."
-```
 
 ### TestCase
 Represents a single test case for evaluating a chatbot response.
@@ -189,24 +190,23 @@ tests:
       hallucination: 0.95
 ```
 
-## Target
+---
 
-Defines how DeadOrEval connects to the agent being tested.
+### Scenario
+Represents a reusable evaluation scenario.
+Loaded once and referenced by multiple test cases.
 
 ```yaml
-target:
-  url: "https://my-dental-bot.com/api/chat"
-  method: "POST"
-  headers:
-    Authorization: "Bearer token"
-    Content-Type: "application/json"
+scenarios:
+  - name: "indecisive-client"
+    description: "A difficult client called who cannot decide
+                  which day to schedule their appointment."
+
+  - name: "angry-client"  
+    description: "An angry client called demanding immediate appointment."
 ```
 
-| Field     | Description                              | Example                        |
-|-----------|------------------------------------------|--------------------------------|
-| `url`     | Endpoint URL of the agent under test     | https://my-bot.com/api/chat    |
-| `method`  | HTTP method used to send requests        | POST                           |
-| `headers` | Additional HTTP headers if required      | Authorization: Bearer token    |
+---
 
 ## How Scenario and TestCase work together
 
@@ -246,22 +246,3 @@ target:
 
 This ensures core can never be broken by other modules
 and is ready to be extracted into a standalone microservice.
-
-## Module Structure
-
-```
-core/
-└── src/main/java/ai/never/trust/
-    ├── model/
-    │   ├── config/
-    │   ├── result/
-    │   ├── test/
-    │   └── warmup/
-    └── interfaces/
-        ├── judge/
-        ├── metric/
-        ├── reporter/
-        ├── engine/
-        └── config/
-```
-

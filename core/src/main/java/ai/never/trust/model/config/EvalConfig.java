@@ -32,7 +32,7 @@ public record EvalConfig(
     String name,
     TestedAgent testedAgent,
     List<JudgeConfig> judges,
-    List<String> metrics,
+    List<MetricConfig> metrics,
     ReportConfig report,
     List<TestCase> tests
 ) {}
