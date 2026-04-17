@@ -15,7 +15,7 @@ import java.util.Map;
  * @param headers  Additional HTTP headers required by the agent.
  *                 Example: {"Authorization": "Bearer token", "Content-Type": "application/json"}
  */
-public record Target(
+public record TestedAgent (
     String url,
     String method,
     Map<String, String> headers

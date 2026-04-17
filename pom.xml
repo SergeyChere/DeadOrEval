@@ -17,6 +17,7 @@
     <module>judge</module>
     <module>core</module>
     <module>cli</module>
+    <module>output</module>
   </modules>
 
   <name>dead-or-eval</name>
