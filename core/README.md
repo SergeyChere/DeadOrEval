@@ -210,8 +210,6 @@ scenarios:
 
 ## How Scenario and TestCase work together
 
-## How Scenario and TestCase work together
-
 **Scenarios are parsed once from config:**
 - `indecisive-client` — A difficult client who cannot decide which day to schedule
 - `angry-client` — An angry client demanding immediate appointment
@@ -224,6 +222,132 @@ scenarios:
 | test-1 | indecisive-client | "I am not sure about Friday..."    | 1000 |
 | test-2 | angry-client      | "I need appointment NOW"           | 500  |
 | test-3 | indecisive-client | "Maybe Monday? Tuesday was fine."  | 1000 |
+
+---
+
+<details>
+<summary>Full configuration example</summary>
+
+```yaml
+# ===========================
+# Test Suite
+# ===========================
+suite:
+  name: "dental-bot-full-suite"
+  configs:
+    - "configs/booking-flow.yaml"
+    - "configs/cancellation-flow.yaml"
+    - "configs/edge-cases.yaml"
+
+# ===========================
+# Scenarios
+# ===========================
+scenarios:
+  - name: "indecisive-client"
+    description: "A difficult client called who cannot decide
+                  which day to schedule their appointment.
+                  They mention being busy on Wednesday and
+                  preferring Tuesday over other days."
+
+  - name: "angry-client"
+    description: "An angry client called demanding
+                  an immediate appointment."
+
+  - name: "confused-client"
+    description: "A confused elderly client who keeps
+                  forgetting what was said earlier
+                  in the conversation."
+
+# ===========================
+# Tested Agent
+# ===========================
+target:
+  url: "https://my-dental-bot.com/api/chat"
+  method: "POST"
+  headers:
+    Authorization: "Bearer token"
+    Content-Type: "application/json"
+
+# ===========================
+# Judges (odd number)
+# ===========================
+judges:
+  - model: "llama3.2:3b"
+    url: "http://localhost:11434"
+
+  - model: "gpt-4o"
+    url: "https://api.openai.com"
+    apiKey: "sk-..."
+
+  - model: "gemini-pro"
+    url: "https://generativelanguage.googleapis.com"
+    apiKey: "AI..."
+
+# ===========================
+# Metrics
+# ===========================
+metrics:
+  - accuracy
+  - consistency
+  - hallucination
+  - incident_tracking
+
+# ===========================
+# Report
+# ===========================
+report:
+  type: "html"
+
+# ===========================
+# Test Cases
+# ===========================
+tests:
+  - name: "indecisive-client-tuesday"
+    description: "Verifies agent books correct day based on client availability"
+    scenarioRef: "indecisive-client"
+    userQuery: "I am not sure about Friday, Tuesday seems okay but Wednesday I am busy."
+    expectedOutput: "I will book you for Tuesday."
+    runs: 1000
+    thresholds:
+      accuracy: 0.9
+      consistency: 0.85
+      hallucination: 0.95
+
+  - name: "indecisive-client-friday"
+    description: "Verifies agent handles client changing their mind about Friday"
+    scenarioRef: "indecisive-client"
+    userQuery: "Actually Friday might work, I am just not sure."
+    expectedOutput: "Would Tuesday still work for you?"
+    runs: 1000
+    thresholds:
+      accuracy: 0.9
+      consistency: 0.85
+      hallucination: 0.95
+
+  - name: "angry-client-urgent"
+    description: "Verifies agent handles urgent appointment request calmly"
+    scenarioRef: "angry-client"
+    userQuery: "I need an appointment right now, this is urgent."
+    expectedOutput: "I understand, the earliest available slot is Tuesday at 10:00."
+    runs: 500
+    thresholds:
+      accuracy: 0.85
+      consistency: 0.80
+      hallucination: 0.90
+
+  - name: "confused-client-cancellation"
+    description: "Verifies agent handles cancellation request from confused client"
+    scenarioRef: "confused-client"
+    userQuery: "I think I had an appointment? I want to cancel it, or maybe reschedule?"
+    expectedOutput: "I found your appointment on Tuesday. Would you like to cancel or reschedule?"
+    runs: 500
+    thresholds:
+      accuracy: 0.85
+      consistency: 0.80
+      hallucination: 0.90
+```
+
+</details>
 
 ---
 
