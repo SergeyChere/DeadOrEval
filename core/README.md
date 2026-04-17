@@ -6,6 +6,153 @@ No business logic. No implementations. Just contracts.
 
 ---
 
+## Configuration
+
+### Test Suite
+Group multiple evaluation configs into a single batch run.
+Perfect for overnight testing.
+
+```yaml
+suite:
+  name: "dental-bot-full-suite"
+  configs:
+    - "configs/indecisive-client.yaml"
+    - "configs/angry-client.yaml"
+    - "configs/confused-client.yaml"
+    - "configs/booking-edge-cases.yaml"
+    - "configs/cancellation-flow.yaml"
+```
+
+**Run overnight:**
+```bash
+doe suite --config suite.yaml
+```
+
+---
+
+### EvalConfig
+The main configuration for a DeadOrEval evaluation run.
+
+```yaml
+name: "dental-bot-eval-v1"
+testedAgent:
+  url: "https://my-dental-bot.com/api/chat"
+  method: "POST"
+  headers:
+    Authorization: "Bearer token"
+judges:
+  - model: "llama3.2:3b"
+    url: "http://localhost:11434"
+  - model: "gpt-4o"
+    url: "https://api.openai.com"
+    apiKey: "sk-..."
+  - model: "gemini-pro"
+    url: "https://generativelanguage.googleapis.com"
+    apiKey: "AI..."
+metrics:
+  - accuracy
+  - consistency
+  - hallucination
+report:
+  type: "html"
+tests:
+  - name: "indecisive-client-tuesday"
+    scenarioRef: "indecisive-client"
+    userQuery: "I am not sure about Friday, Tuesday seems okay but Wednesday I am busy."
+    expectedOutput: "I will book you for Tuesday."
+    runs: 1000
+    thresholds:
+      accuracy: 0.9
+      consistency: 0.85
+
+  - name: "indecisive-client-friday"
+    scenarioRef: "indecisive-client"
+    userQuery: "Actually Friday might work, I am just not sure."
+    expectedOutput: "Would Tuesday still work for you?"
+    runs: 1000
+    thresholds:
+      accuracy: 0.9
+      consistency: 0.85
+
+  - name: "angry-client-now"
+    scenarioRef: "angry-client"
+    userQuery: "I need an appointment right now, this is urgent."
+    expectedOutput: "I understand, the earliest available slot is Tuesday at 10:00."
+    runs: 500
+    thresholds:
+      accuracy: 0.85
+      consistency: 0.80
+```
+
+| Field          | Description                                    |
+|----------------|------------------------------------------------|
+| `name`         | Unique identifier for this evaluation run      |
+| `testedAgent`  | The agent under evaluation                     |
+| `judges`       | Odd number of judges for consensus evaluation  |
+| `metrics`      | List of metrics to calculate                   |
+| `report`       | How to report evaluation results               |
+| `tests`        | List of test cases to execute                  |
+
+---
+
+### TestedAgent
+Defines how DeadOrEval connects to the agent being tested.
+
+```yaml
+target:
+  url: "https://my-dental-bot.com/api/chat"
+  method: "POST"
+  headers:
+    Authorization: "Bearer token"
+    Content-Type: "application/json"
+```
+
+| Field     | Description                              |
+|-----------|------------------------------------------|
+| `url`     | Endpoint URL of the agent under test     |
+| `method`  | HTTP method used to send requests        |
+| `headers` | Additional HTTP headers if required      |
+
+---
+
+### JudgeConfig
+Defines which judge to use and how to connect to it.
+For reliable consensus evaluation, use an odd number of judges.
+
+```yaml
+judges:
+  - model: "llama3.2:3b"
+    url: "http://localhost:11434"
+  - model: "gpt-4o"
+    url: "https://api.openai.com"
+    apiKey: "sk-..."
+  - model: "gemini-pro"
+    url: "https://generativelanguage.googleapis.com"
+    apiKey: "AI..."
+```
+
+| Field    | Description                                    |
+|----------|------------------------------------------------|
+| `model`  | Model name to use for evaluation               |
+| `url`    | Endpoint URL of the judge service              |
+| `apiKey` | API key to authenticate with the judge service |
+
+---
+
+### ReportConfig
+Defines how evaluation results are reported.
+
+```yaml
+report:
+  type: "html"
+```
+
+| Field  | Description                                      |
+|--------|--------------------------------------------------|
+| `type` | Type of report: `console`, `html`, `json`, `pdf` |
+
+---
+
 ## Domain Models
 
 ### Scenario
