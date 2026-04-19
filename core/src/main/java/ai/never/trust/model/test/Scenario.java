@@ -14,7 +14,7 @@ package ai.never.trust.model.test;
  *                           They mention being busy on Wednesday and
  *                           preferring Tuesday over other days."
  */
-public record AgentContext(
+public record Scenario(
     String name,
     String scenario
 ) {}
