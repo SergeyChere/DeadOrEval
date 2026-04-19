@@ -20,7 +20,15 @@ DeadOrEval measures **reliability** — can you trust it in production on week 1
 
 Please read [BRANCHING.md](BRANCHING.md) for details on our branching strategy and contribution rules.
 
-For detailed documentation on each module, see the README in each module it directory
+For detailed documentation on each module, see the README in each module directory:
+
+- [core/README.md](core/README.md) — Domain models and interfaces
+- [judge/README.md](judge/README.md) — Judge implementations
+- [metrics/README.md](metrics/README.md) — Metric implementations
+- [engine/README.md](engine/README.md) — Evaluation engine
+- [reporter/README.md](reporter/README.md) — Report generation
+- [config/README.md](config/README.md) — Configuration parsing
+- [cli/README.md](cli/README.md) — CLI usage
 
 
 ## Quick Start
