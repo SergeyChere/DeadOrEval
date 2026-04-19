@@ -53,17 +53,43 @@ tests:
 For full configuration details see [config/README.md](config/README.md).
 For CLI usage see [cli/README.md](cli/README.md).
 
+## Minimum Requirements
+
+DeadOrEval is designed to run on any machine with:
+- Java 21+
+- 8GB RAM
+- [Ollama](https://ollama.com) with `llama3.2:3b`
+
+This covers a single local judge and basic test cases.
+For extended testing see [EXTENDED.md](EXTENDED.md).
+
 ## Roadmap
 
+### MVP
 - [x] Multi-module Maven architecture
-- [x] CLI with picocli
 - [ ] YAML config support
 - [ ] Ollama judge implementation
 - [ ] Accuracy, Consistency, Hallucination, Incident metrics
+- [ ] Console reporter
 - [ ] HTML report generation
+- [ ] Single judge evaluation flow
+- [ ] Warmup — model heatup before calibration
+- [ ] Warmup — judge calibration with known questions
+- [ ] Warmup — peer review between judges
+- [ ] Warmup — judge weight calculation
+- [ ] Warmup — skip if single judge
 - [ ] Multiple judges consensus
-- [ ] CI/CD integration
+
+### Post MVP
+- [ ] EvalSuite — batch overnight testing
+- [ ] Warmup — custom warmup questions via config
+- [ ] Warmup — configurable heatup runs and timeouts
 - [ ] GraalVM native binary
+- [ ] Distributed judges on remote machines
+- [ ] CI/CD integration
+- [ ] PDF report generation
+- [ ] Prometheus metrics export
+- [ ] Schedule testing
 
 ## Contributing
 

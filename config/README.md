@@ -6,7 +6,7 @@ The `config` module is responsible for parsing YAML configuration files into dom
 
 ## Configuration
 
-### TestSuite
+### EvalSuite //TODO in Post MVP
 Groups multiple evaluation configs into a single batch run, perfect for overnight testing.
 Fields defined in the suite act as defaults for all configs and can be overridden individually.
 
@@ -121,6 +121,35 @@ tests:
 | `report`       | How to report evaluation results               |
 | `scenarios`    | List of reusable scenarios for test cases      |
 | `tests`        | List of test cases to execute                  |
+
+---
+
+## Configuration Structure
+
+TestSuite (config)
+├── defaults
+│   ├── testedAgent
+│   ├── judges[]
+│   ├── metrics[]
+│   └── report
+│
+└── evalConfigs[]
+    ├── EvalConfig A
+    │   ├── scenarios[]
+    │   ├── tests[]
+    │   └── overrides: judges
+    │
+    ├── EvalConfig B
+    │   ├── scenarios[]
+    │   ├── tests[]
+    │   └── inherits all defaults
+    │
+    └── EvalConfig C
+        ├── scenarios[]
+        ├── tests[]
+        └── overrides: testedAgent
+
+---
 
 ### TestedAgent
 Defines how DeadOrEval connects to the agent being tested.
