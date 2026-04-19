@@ -16,13 +16,20 @@ DeadOrEval measures **reliability** — can you trust it in production on week 1
 2. DeadOrEval sends it to a local judge model thousands of times
 3. You get a report showing consistency, accuracy and failure rate
 
+## Contributing
+
+Please read [BRANCHING.md](BRANCHING.md) for details on our branching strategy and contribution rules.
+
+For detailed documentation on each module, see the README in each module it directory
+
+
 ## Quick Start
 
 ```bash
 # Install Ollama
 # https://ollama.com
 
-# Pull judge model
+# Pull judge model like this
 ollama pull llama3.2:3b
 
 # Clone and build
