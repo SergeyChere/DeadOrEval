@@ -2,6 +2,7 @@ package ai.never.trust.model.config;
 
 import java.util.List;
 
+import ai.never.trust.model.test.Scenario;
 import ai.never.trust.model.test.TestCase;
 
 /**
@@ -34,5 +35,6 @@ public record EvalConfig(
     List<JudgeConfig> judges,
     List<MetricConfig> metrics,
     ReportConfig report,
+    List<Scenario> scenarios,
     List<TestCase> tests
 ) {}

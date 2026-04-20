@@ -1,31 +1,84 @@
+# CLI Module
 
+The `cli` module is the entry point of DeadOrEval.
+It parses command line arguments and orchestrates the evaluation run.
 
 ---
 
-## CLI Usage
+## Usage
 
 ```bash
-java -jar cli/target/doe.jar --config app.yaml
-java -jar cli/target/doe.jar --config app.yaml --runs 1000
-java -jar cli/target/doe.jar --config app.yaml --judges ollama,openai,gemini
-java -jar cli/target/doe.jar --config app.yaml --metrics accuracy,consistency,hallucination
-java -jar cli/target/doe.jar --config app.yaml --report html
-java -jar cli/target/doe.jar --config app.yaml --threshold 0.8
-java -jar cli/target/doe.jar --config app.yaml --verbose
-java -jar cli/target/doe.jar --version
+java -jar doe.jar --config app.yaml
 ```
 
 ---
 
-## Example Output
+## Arguments
 
-=== DeadOrEval Results ===
-Total evaluated:  1000
-Failed to parse:  0
-Average score:    0.873
-Min score:        0.6
-Max score:        1.0
-Perfect (>=0.9):  743
-Wrong   (<=0.1):  0
+| Argument   | Description                        | Required |
+|------------|------------------------------------|----------|
+| `--config` | Path to the EvalConfig YAML file   | ✅ Yes   |
 
 ---
+
+## Examples
+
+```bash
+# Run evaluation with a config file
+java -jar doe.jar --config app.yaml
+
+# Run with a config in a subdirectory
+java -jar doe.jar --config configs/dental-bot.yaml
+```
+
+---
+
+## Flow
+
+```
+doe --config app.yaml
+        │
+        ▼
+    CliArgs
+        │
+        ▼
+  YamlConfigParser
+        │
+        ▼
+    EvalConfig
+        │
+        ▼
+    EvalEngine
+        │
+        ▼
+    EvalReport
+        │
+        ▼
+     Reporter
+```
+
+---
+
+## Post MVP Arguments
+
+```bash
+doe --config app.yaml --report html
+doe --config app.yaml --judges ollama,openai
+doe --config app.yaml --metrics accuracy,consistency
+doe --config app.yaml --runs 1000
+doe --config app.yaml --verbose
+doe --config app.yaml --dry-run
+```
+
+---
+
+## Dependency Rule
+
+```
+cli → engine
+cli → config
+cli → core
+```
+
+For configuration details see [config/README.md](../config/README.md).
+For engine details see [engine/README.md](../engine/README.md).

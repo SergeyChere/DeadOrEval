@@ -14,8 +14,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>info.picocli</groupId>
-            <artifactId>picocli</artifactId>
+            <groupId>ai.never.trust</groupId>
+            <artifactId>config</artifactId>
         </dependency>
         <dependency>
             <groupId>ai.never.trust</groupId>

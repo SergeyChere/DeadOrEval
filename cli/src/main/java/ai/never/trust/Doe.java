@@ -1,76 +1,87 @@
 package ai.never.trust;
 
-import java.util.List;
-import java.util.concurrent.Callable;
+import ai.never.trust.model.cli.CliArgs;
+import ai.never.trust.model.config.EvalConfig;
 
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
-
-@Command(
-    name = "doe",
-    description = "DeadOrEval - Local-first LLM evaluation framework",
-    mixinStandardHelpOptions = true,
-    version = "0.1.0"
-)
-public class Doe implements Callable<Integer> {
-    @Option(
-        names = {"--config", "-c"},
-        description = "Path to eval config file",
-        required = true
-    )
-    private String config;
-
-    @Option(
-        names = {"--runs", "-r"},
-        description = "Number of evaluation runs"
-    )
-    private int runs = -1;
-
-    @Option(
-        names = {"--judges", "-j"},
-        description = "Judges to use (ollama, openai, gemini)",
-        split = ","
-    )
-    private List<String> judges;
-
-    @Option(
-        names = {"--metrics", "-m"},
-        description = "Metrics to calculate",
-        split = ","
-    )
-    private List<String> metrics;
-
-    @Option(
-        names = {"--report"},
-        description = "Report type (console, html, json)"
-    )
-    private String report;
-
-    @Option(
-        names = {"--threshold", "-t"},
-        description = "Incident threshold (default 0.5)"
-    )
-    private double threshold = -1;
-
-    @Option(
-        names = {"--verbose", "-v"},
-        description = "Verbose output"
-    )
-    private boolean verbose;
-
-    @Override
-    public Integer call() throws Exception {
-        System.out.println("DeadOrEval starting...");
-        System.out.println("Config: " + config);
-        System.out.println("Runs: " + runs);
-        System.out.println("Judges: " + judges);
-        System.out.println("Metrics: " + metrics);
-        return 0;
-    }
+/**
+ * Entry point for DeadOrEval CLI.
+ * Usage: doe --config app.yaml
+ */
+public class Doe {
 
     public static void main(String[] args) {
-        int exitCode = new CommandLine(new Doe()).execute(args);
-        System.exit(exitCode);
+        CliArgs cliArgs = parseArgs(args);
+
+        if (cliArgs == null) {
+            printUsage();
+            System.exit(1);
+        }
+
+        System.out.println("DeadOrEval starting...");
+        System.out.println("Config: " + cliArgs.config());
+
+        YamlConfigParser parser = new YamlConfigParser();
+        EvalConfig evalConfig = parser.parse(cliArgs.config());
+
+        System.out.println("\n=== Parsed EvalConfig ===");
+        System.out.println("Name:        " + evalConfig.name());
+        System.out.println("TestedAgent: " + evalConfig.testedAgent().url());
+        System.out.println("Judges:      " + evalConfig.judges().size());
+        evalConfig.judges().forEach(j ->
+            System.out.println("  - " + j.model() + " @ " + j.url()));
+        System.out.println("Metrics:     " + evalConfig.metrics().size());
+        evalConfig.metrics().forEach(m ->
+            System.out.println("  - " + m.name()));
+        System.out.println("Report:      " + evalConfig.report().type());
+        System.out.println("Scenarios:   " + evalConfig.scenarios().size());
+        evalConfig.scenarios().forEach(s ->
+            System.out.println("  - " + s.name()));
+        System.out.println("Tests:       " + evalConfig.tests().size());
+        evalConfig.tests().forEach(t ->
+            System.out.println("  - " + t.name() + " (runs: " + t.runs() + ")"));
+    }
+
+    private static CliArgs parseArgs(String[] args) {
+        String config = null;
+
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "--config", "-c" -> {
+                    if (i + 1 < args.length) config = args[++i];
+                }
+                case "--help", "-h" -> {
+                    printUsage();
+                    System.exit(0);
+                }
+                case "--version" -> {
+                    System.out.println("DeadOrEval 0.1.0");
+                    System.exit(0);
+                }
+            }
+        }
+
+        if (config == null) {
+            System.err.println("Error: --config is required");
+            return null;
+        }
+
+        return new CliArgs(config);
+    }
+
+    private static void printUsage() {
+        System.out.println("""
+            DeadOrEval — Local-first LLM evaluation framework
+            
+            Usage:
+              doe --config <path>
+            
+            Arguments:
+              --config, -c   Path to EvalConfig YAML file (required)
+              --version      Print version
+              --help, -h     Print this help
+            
+            Example:
+              doe --config app.yaml
+            """);
     }
 }
