@@ -12,4 +12,12 @@
 
     <artifactId>judge</artifactId>
 
+    <dependencies>
+        <dependency>
+            <groupId>ai.never.trust</groupId>
+            <artifactId>core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+
 </project>
