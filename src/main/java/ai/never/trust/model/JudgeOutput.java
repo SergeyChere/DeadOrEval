@@ -11,6 +11,7 @@ public class JudgeOutput {
     private double score;
     private String reasoning;
     private List<String> tags;
+    private double confidence = -1.0; // -1 means not provided (Ollama); Jev always provides it
 
     public JudgeOutput() {}
 
@@ -31,6 +32,10 @@ public class JudgeOutput {
 
     public List<String> getTags() { return tags; }
     public void setTags(List<String> tags) { this.tags = tags; }
+
+    public double getConfidence() { return confidence; }
+    public void setConfidence(double confidence) { this.confidence = confidence; }
+    public boolean hasConfidence() { return confidence >= 0.0; }
 
     @Override
     public String toString() {

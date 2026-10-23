@@ -2,8 +2,8 @@
 
 > Is your chatbot dead or alive? Find out with one command.
 
-DeadOrEval is a **local-first LLM evaluation framework** for testing chatbots and AI agents.  
-No cloud. No API keys. No cost. Point it at your chatbot and get a reliability report.
+DeadOrEval is a **self-hosted LLM evaluation framework** for testing chatbots and AI agents.  
+No SaaS. No vendor lock-in. Point it at your chatbot and get a reliability report.
 
 ---
 
@@ -14,7 +14,8 @@ DeadOrEval measures **reliability** — can you trust it in production on week 1
 
 | | DeadOrEval | DeepEval | Ragas | Langsmith |
 |---|---|---|---|---|
-| Local judge (free) | ✓ | ✗ | ✗ | ✗ |
+| Jev judge (typed, no hallucination) | ✓ | ✗ | ✗ | ✗ |
+| Self-hosted judge (free) | ✓ | ✗ | ✗ | ✗ |
 | No code required | ✓ | ✗ | ✗ | ✗ |
 | Multi-run consistency | ✓ | partial | ✗ | partial |
 | Self-contained JAR | ✓ | ✗ | ✗ | ✗ |
@@ -24,9 +25,15 @@ DeadOrEval measures **reliability** — can you trust it in production on week 1
 
 ## Quick Start
 
+### Option A — Jev (recommended)
+
+Jev is a System One model: one forward pass, typed output, no hallucinations, no text parsing.
+Self-host with vLLM or use the TypeSafe cloud API.
+
 ```bash
-# 1. Install Ollama — https://ollama.com
-ollama pull llama3.2:3b
+# 1. Self-host openjev with vLLM (needs ~24 GB VRAM, or use the GGUF build for less)
+#    See: https://huggingface.co/openjev/openjev
+#    Or use TypeSafe cloud: https://console.typesafe.ai
 
 # 2. Clone and build
 git clone https://github.com/SergeyChere/DeadOrEval.git
@@ -40,11 +47,13 @@ testedAgent:
   url: http://localhost:8080/api/chat
   method: POST
 judges:
-  - model: llama3.2:3b
-    url: http://localhost:11434
+  - model: openjev          # or: jev-latest (TypeSafe cloud), jev-9b (lighter model)
+    url: http://localhost:8080   # your vLLM server
+    # apiKey: ts-...         # only needed for TypeSafe cloud
 metrics:
   - accuracy
   - consistency
+  - hallucination
 report:
   type: html
 scenarios:
@@ -55,7 +64,7 @@ tests:
     scenarioRef: basic
     userQuery: "What are your opening hours?"
     expectedOutput: "We are open Monday to Friday, 9am to 5pm."
-    runs: 10
+    runs: 100
     thresholds:
       accuracy: 0.8
       consistency: 0.85
@@ -64,6 +73,20 @@ EOF
 # 4. Run
 java -jar target/doe.jar --config app.yaml
 ```
+
+### Option B — Ollama (slow, not recommended for large runs)
+
+```bash
+ollama pull llama3.2:3b
+```
+
+```yaml
+judges:
+  - model: llama3.2:3b
+    url: http://localhost:11434
+```
+
+> ⚠️ Ollama is autoregressive — 1000 runs can take hours. Use Jev for any serious evaluation.
 
 ---
 
@@ -85,7 +108,7 @@ java -jar target/doe.jar --config app.yaml
 ```
 
 **Key design decisions:**
-- **Local-first**: Ollama runs on your laptop, no API keys needed
+- **Jev-first**: One forward pass, typed output — no text parsing, no hallucinations, fast enough for 1000+ runs
 - **Multi-run**: Run the same query 100–1000 times to measure consistency
 - **Consensus**: Multiple judges → weighted average score
 - **Incident tracking**: Any run below your threshold is logged as an incident
@@ -107,12 +130,16 @@ testedAgent:
     Content-Type: application/json
 
 judges:
-  - model: llama3.2:3b
-    url: http://localhost:11434
-  # Cloud judges (coming soon):
-  # - model: gpt-4o
-  #   url: https://api.openai.com
-  #   apiKey: sk-...
+  # Jev (recommended) — self-hosted via vLLM:
+  - model: openjev
+    url: http://localhost:8080
+  # Jev via TypeSafe cloud:
+  # - model: jev-latest
+  #   url: https://api.typesafe.ai
+  #   apiKey: ts-...
+  # Ollama (slow, for quick local tests only):
+  # - model: llama3.2:3b
+  #   url: http://localhost:11434
 
 metrics:
   - accuracy
@@ -314,7 +341,8 @@ mvn test
 
 ### v0.1 (current)
 - [x] YAML config parser
-- [x] Ollama judge (local, free)
+- [x] Jev judge (openjev, JEV-9B, TypeSafe API) — typed output, calibrated confidence
+- [x] Ollama judge (legacy, slow — for quick local tests)
 - [x] 4 metrics: accuracy, consistency, hallucination, incident_tracking
 - [x] Console + HTML reporter
 - [x] Multi-judge consensus with normalization
