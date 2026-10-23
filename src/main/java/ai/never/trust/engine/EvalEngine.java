@@ -12,15 +12,20 @@ import java.util.*;
 /**
  * Orchestrates the full evaluation run.
  *
- * Flow:
- * 1. Parse config, build judges and metrics
- * 2. For each TestCase:
- *    a. Resolve scenario
- *    b. Run userQuery against the agent N times
- *    c. For each run: all judges evaluate the response → consensus score
- *    d. Aggregate results → TestCaseReport
- * 3. Aggregate all TestCaseReports → EvalReport
- * 4. Return EvalReport
+ * Cost-efficient flow:
+ *
+ *   1. Run the agent N times → collect all responses
+ *   2. Pick a sample of min(judgeRuns, N) responses → send to judge
+ *   3. From judge results: pick the best-scored response as the reference
+ *   4. Score the remaining (non-judged) runs via text similarity vs the reference
+ *   5. Merge judge scores + similarity scores → unified TestResult list
+ *   6. Compute metrics, detect incidents, build report
+ *
+ * Why this works:
+ *   - Accuracy: measured on the judge sample (statistically valid for N ≥ 30)
+ *   - Consistency: measured across ALL N runs via pairwise similarity (free)
+ *   - Hallucination: measured on the judge sample (Jev returns noul probability)
+ *   - Cost: judge called judgeRuns times (default 10), not N times
  */
 public class EvalEngine {
 
@@ -37,16 +42,13 @@ public class EvalEngine {
         System.out.println("  Tests:   " + (config.getTests() != null ? config.getTests().size() : 0));
         System.out.println();
 
-        // Build judges
         List<Judge> judges = buildJudges(config);
         if (judges.isEmpty()) {
-            throw new IllegalStateException("No judges configured or available. At least one judge is required.");
+            throw new IllegalStateException("No judges configured or available.");
         }
 
-        // Build metrics
         List<Metric> metrics = MetricRegistry.build(config.getMetrics());
 
-        // Run all test cases
         List<TestCaseReport> testCaseReports = new ArrayList<>();
         List<String> allIncidents = new ArrayList<>();
 
@@ -57,20 +59,201 @@ public class EvalEngine {
 
         for (int i = 0; i < tests.size(); i++) {
             TestCase testCase = tests.get(i);
-            System.out.printf("[%d/%d] Running: %s (%d runs)%n",
-                    i + 1, tests.size(), testCase.getName(), testCase.getRuns());
+            int judgeRuns = Math.min(testCase.getJudgeRuns(), testCase.getRuns());
+            System.out.printf("[%d/%d] Running: %s  (agent×%d, judge×%d)%n",
+                    i + 1, tests.size(), testCase.getName(), testCase.getRuns(), judgeRuns);
 
             Scenario scenario = config.findScenario(testCase.getScenarioRef());
-
             TestCaseReport report = runTestCase(config, testCase, scenario, judges, metrics);
             testCaseReports.add(report);
             allIncidents.addAll(report.getIncidents() != null ? report.getIncidents() : List.of());
-
             printTestCaseProgress(report);
         }
 
-        // Build final report
         return buildFinalReport(config.getName(), testCaseReports, allIncidents, metrics);
+    }
+
+    // ── Phase 1: collect all agent responses ────────────────────────────────
+
+    private List<String> collectResponses(EvalConfig config, TestCase testCase, Scenario scenario) {
+        List<String> responses = new ArrayList<>();
+        int runs = testCase.getRuns();
+
+        for (int run = 0; run < runs; run++) {
+            if (runs <= 10 || (run + 1) % Math.max(1, runs / 10) == 0) {
+                System.out.printf("    agent %d/%d%n", run + 1, runs);
+            }
+            try {
+                String output = agentCaller.call(config.getTestedAgent(), scenario, testCase);
+                responses.add(output);
+            } catch (Exception e) {
+                System.err.println("    ✗ Agent call failed (run " + (run + 1) + "): " + e.getMessage());
+            }
+        }
+        return responses;
+    }
+
+    // ── Phase 2+3: judge a sample, find reference ────────────────────────────
+
+    /**
+     * Returns judge scores for the sampled responses.
+     * The "reference" is the response with the highest consensus score.
+     */
+    private JudgeSample judgeResponses(
+            List<String> responses,
+            TestCase testCase,
+            Scenario scenario,
+            List<Judge> judges) {
+
+        int judgeRuns = Math.min(testCase.getJudgeRuns(), responses.size());
+
+        // Pick indices evenly spread across the response list
+        List<Integer> sampleIndices = pickSampleIndices(responses.size(), judgeRuns);
+
+        Map<Integer, Double> judgedScores = new LinkedHashMap<>();
+        String bestResponse = responses.get(0);
+        double bestScore = -1;
+
+        System.out.printf("    judging %d/%d responses...%n", judgeRuns, responses.size());
+
+        for (int idx : sampleIndices) {
+            String response = responses.get(idx);
+            List<JudgeOutput> outputs = new ArrayList<>();
+            for (Judge judge : judges) {
+                JudgeOutput out = judge.judge(scenario, testCase, response);
+                normalizer.record(judge.getName(), out.getScore());
+                outputs.add(out);
+            }
+            double score = normalizer.weightedConsensus(outputs);
+            judgedScores.put(idx, score);
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestResponse = response;
+            }
+        }
+
+        return new JudgeSample(judgedScores, bestResponse, bestScore);
+    }
+
+    // ── Phase 4: score non-judged runs via similarity ─────────────────────────
+
+    private TestCaseReport runTestCase(
+            EvalConfig config,
+            TestCase testCase,
+            Scenario scenario,
+            List<Judge> judges,
+            List<Metric> metrics) {
+
+        // Phase 1: all agent runs
+        List<String> responses = collectResponses(config, testCase, scenario);
+        if (responses.isEmpty()) {
+            return emptyReport(testCase.getName());
+        }
+
+        // Phase 2+3: judge sample
+        JudgeSample sample = judgeResponses(responses, testCase, scenario, judges);
+
+        // Phase 4: similarity scores for non-judged runs
+        double[] similarityScores = TextSimilarity.againstReference(responses, sample.referenceResponse);
+
+        // Phase 5: merge into unified TestResult list
+        List<TestResult> runResults = new ArrayList<>();
+        List<String> incidents = new ArrayList<>();
+
+        for (int i = 0; i < responses.size(); i++) {
+            double score;
+            String source;
+
+            if (sample.judgedScores.containsKey(i)) {
+                // This run was judged
+                score = sample.judgedScores.get(i);
+                source = "judged";
+            } else {
+                // Scale similarity [0,1] → score anchored to judge reference
+                // If similarity=1.0 → same score as reference; if 0 → 0
+                score = similarityScores[i] * sample.referenceScore;
+                source = "similarity";
+            }
+
+            TestResult result = new TestResult();
+            result.setTestName(testCase.getName());
+            result.setAgentOutput(responses.get(i));
+            result.setConsensusScore(score);
+
+            // Incidents
+            List<String> resultIncidents = new ArrayList<>();
+            if (testCase.getThresholds() != null) {
+                for (Map.Entry<String, Double> threshold : testCase.getThresholds().entrySet()) {
+                    if (score < threshold.getValue()) {
+                        String incident = String.format(
+                                "INCIDENT [%s] run=%d score=%.3f threshold=%.3f source=%s",
+                                testCase.getName(), i + 1, score, threshold.getValue(), source);
+                        resultIncidents.add(incident);
+                        incidents.add(incident);
+                    }
+                }
+            }
+            result.setIncidents(resultIncidents);
+            result.setPassed(resultIncidents.isEmpty());
+            runResults.add(result);
+        }
+
+        // Consistency via pairwise similarity (free, across ALL runs)
+        double consistencyRaw = TextSimilarity.averagePairwise(responses);
+
+        // Metrics
+        Map<String, Double> metricScores = new LinkedHashMap<>();
+        for (Metric metric : metrics) {
+            double val = metric.getName().equals("consistency")
+                    ? consistencyRaw   // override: use similarity-based consistency
+                    : metric.calculate(runResults);
+            metricScores.put(metric.getName(), val);
+        }
+
+        DoubleSummaryStatistics stats = runResults.stream()
+                .mapToDouble(TestResult::getConsensusScore)
+                .summaryStatistics();
+
+        double variance = 0;
+        if (!runResults.isEmpty()) {
+            double mean = stats.getAverage();
+            variance = runResults.stream()
+                    .mapToDouble(r -> (r.getConsensusScore() - mean) * (r.getConsensusScore() - mean))
+                    .average().orElse(0);
+        }
+
+        TestCaseReport report = new TestCaseReport();
+        report.setTestName(testCase.getName());
+        report.setTotalRuns(runResults.size());
+        report.setPassedRuns((int) runResults.stream().filter(TestResult::isPassed).count());
+        report.setAverageScore(stats.getCount() > 0 ? stats.getAverage() : 0.0);
+        report.setMinScore(stats.getCount() > 0 ? stats.getMin() : 0.0);
+        report.setMaxScore(stats.getCount() > 0 ? stats.getMax() : 0.0);
+        report.setScoreVariance(variance);
+        report.setMetricScores(metricScores);
+        report.setIncidents(incidents);
+        report.setPassed(incidents.isEmpty());
+        return report;
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Pick `count` indices evenly spread across [0, total).
+     * If count >= total, returns all indices.
+     */
+    private List<Integer> pickSampleIndices(int total, int count) {
+        if (count >= total) {
+            List<Integer> all = new ArrayList<>();
+            for (int i = 0; i < total; i++) all.add(i);
+            return all;
+        }
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            indices.add((int) Math.round((double) i * (total - 1) / (count - 1)));
+        }
+        return indices;
     }
 
     private List<Judge> buildJudges(EvalConfig config) {
@@ -93,134 +276,45 @@ public class EvalEngine {
         return judges;
     }
 
-    private TestCaseReport runTestCase(
-            EvalConfig config,
-            TestCase testCase,
-            Scenario scenario,
-            List<Judge> judges,
-            List<Metric> metrics) {
-
-        List<TestResult> runResults = new ArrayList<>();
-        List<String> incidents = new ArrayList<>();
-        int runs = testCase.getRuns();
-
-        for (int run = 0; run < runs; run++) {
-            // Print progress every 10% or every run if < 10
-            if (runs <= 10 || (run + 1) % Math.max(1, runs / 10) == 0) {
-                System.out.printf("    Run %d/%d%n", run + 1, runs);
-            }
-
-            String agentOutput;
-            try {
-                agentOutput = agentCaller.call(config.getTestedAgent(), scenario, testCase);
-            } catch (Exception e) {
-                System.err.println("    ✗ Agent call failed (run " + (run + 1) + "): " + e.getMessage());
-                continue;
-            }
-
-            // All judges evaluate this response
-            List<JudgeOutput> judgeOutputs = new ArrayList<>();
-            for (Judge judge : judges) {
-                JudgeOutput output = judge.judge(scenario, testCase, agentOutput);
-                normalizer.record(judge.getName(), output.getScore());
-                judgeOutputs.add(output);
-            }
-
-            double consensusScore = normalizer.weightedConsensus(judgeOutputs);
-
-            TestResult result = new TestResult();
-            result.setTestName(testCase.getName());
-            result.setAgentOutput(agentOutput);
-            result.setJudgeOutputs(judgeOutputs);
-            result.setConsensusScore(consensusScore);
-
-            // Check thresholds → incidents
-            List<String> resultIncidents = new ArrayList<>();
-            if (testCase.getThresholds() != null) {
-                for (Map.Entry<String, Double> threshold : testCase.getThresholds().entrySet()) {
-                    if (consensusScore < threshold.getValue()) {
-                        String incident = String.format("INCIDENT [%s] run=%d score=%.3f threshold=%.3f",
-                                testCase.getName(), run + 1, consensusScore, threshold.getValue());
-                        resultIncidents.add(incident);
-                        incidents.add(incident);
-                    }
-                }
-            }
-            result.setIncidents(resultIncidents);
-            result.setPassed(resultIncidents.isEmpty());
-
-            runResults.add(result);
-        }
-
-        // Calculate metrics across all runs
-        Map<String, Double> metricScores = new LinkedHashMap<>();
-        for (Metric metric : metrics) {
-            metricScores.put(metric.getName(), metric.calculate(runResults));
-        }
-
-        // Aggregate run stats
-        DoubleSummaryStatistics stats = runResults.stream()
-                .mapToDouble(TestResult::getConsensusScore)
-                .summaryStatistics();
-
-        double variance = 0;
-        if (!runResults.isEmpty()) {
-            double mean = stats.getAverage();
-            variance = runResults.stream()
-                    .mapToDouble(r -> (r.getConsensusScore() - mean) * (r.getConsensusScore() - mean))
-                    .average()
-                    .orElse(0);
-        }
-
-        TestCaseReport report = new TestCaseReport();
-        report.setTestName(testCase.getName());
-        report.setTotalRuns(runResults.size());
-        report.setPassedRuns((int) runResults.stream().filter(TestResult::isPassed).count());
-        report.setAverageScore(stats.getCount() > 0 ? stats.getAverage() : 0.0);
-        report.setMinScore(stats.getCount() > 0 ? stats.getMin() : 0.0);
-        report.setMaxScore(stats.getCount() > 0 ? stats.getMax() : 0.0);
-        report.setScoreVariance(variance);
-        report.setMetricScores(metricScores);
-        report.setIncidents(incidents);
-        report.setPassed(incidents.isEmpty());
-
-        return report;
-    }
-
     private EvalReport buildFinalReport(
             String evalName,
-            List<TestCaseReport> testCaseReports,
+            List<TestCaseReport> reports,
             List<String> incidents,
             List<Metric> metrics) {
 
-        DoubleSummaryStatistics stats = testCaseReports.stream()
+        DoubleSummaryStatistics stats = reports.stream()
                 .mapToDouble(TestCaseReport::getAverageScore)
                 .summaryStatistics();
 
         Map<String, Double> overallMetrics = new LinkedHashMap<>();
         for (Metric metric : metrics) {
-            // Average metric score across all test cases
-            double avg = testCaseReports.stream()
-                    .map(r -> r.getMetricScores() != null ? r.getMetricScores().getOrDefault(metric.getName(), 0.0) : 0.0)
-                    .mapToDouble(d -> d)
-                    .average()
-                    .orElse(0.0);
+            double avg = reports.stream()
+                    .mapToDouble(r -> r.getMetricScores() != null
+                            ? r.getMetricScores().getOrDefault(metric.getName(), 0.0) : 0.0)
+                    .average().orElse(0.0);
             overallMetrics.put(metric.getName(), avg);
         }
 
         EvalReport report = new EvalReport();
         report.setEvalName(evalName);
-        report.setTotalTests(testCaseReports.size());
-        report.setPassedTests((int) testCaseReports.stream().filter(TestCaseReport::isPassed).count());
-        report.setFailedTests((int) testCaseReports.stream().filter(r -> !r.isPassed()).count());
+        report.setTotalTests(reports.size());
+        report.setPassedTests((int) reports.stream().filter(TestCaseReport::isPassed).count());
+        report.setFailedTests((int) reports.stream().filter(r -> !r.isPassed()).count());
         report.setAverageScore(stats.getCount() > 0 ? stats.getAverage() : 0.0);
         report.setMinScore(stats.getCount() > 0 ? stats.getMin() : 0.0);
         report.setMaxScore(stats.getCount() > 0 ? stats.getMax() : 0.0);
-        report.setTestCaseReports(testCaseReports);
+        report.setTestCaseReports(reports);
         report.setIncidents(incidents);
         report.setOverallMetrics(overallMetrics);
-
         return report;
+    }
+
+    private TestCaseReport emptyReport(String name) {
+        TestCaseReport r = new TestCaseReport();
+        r.setTestName(name);
+        r.setPassed(false);
+        r.setIncidents(List.of("All agent calls failed"));
+        return r;
     }
 
     private void printTestCaseProgress(TestCaseReport report) {
@@ -232,5 +326,19 @@ public class EvalEngine {
                 report.getMaxScore(),
                 report.getScoreVariance(),
                 report.getIncidents() != null ? report.getIncidents().size() : 0);
+    }
+
+    // ── inner record ─────────────────────────────────────────────────────────
+
+    private static class JudgeSample {
+        final Map<Integer, Double> judgedScores;  // index → score for judged runs
+        final String referenceResponse;            // best-scoring response text
+        final double referenceScore;               // its judge score
+
+        JudgeSample(Map<Integer, Double> judgedScores, String referenceResponse, double referenceScore) {
+            this.judgedScores = judgedScores;
+            this.referenceResponse = referenceResponse;
+            this.referenceScore = referenceScore;
+        }
     }
 }

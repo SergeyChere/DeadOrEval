@@ -193,6 +193,7 @@ tests:
 | `scenarios` | no | Reusable context definitions |
 | `tests` | yes | List of test cases |
 | `tests[].runs` | no | How many times to call the agent, default `1` |
+| `tests[].judgeRuns` | no | How many of those runs are sent to the judge, default `10`. The rest are scored via text similarity against the best-judged response — free, no API calls. |
 | `tests[].thresholds` | no | Per-metric pass/fail thresholds |
 
 ---

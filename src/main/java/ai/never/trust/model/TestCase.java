@@ -14,6 +14,7 @@ public class TestCase {
     private String userQuery;
     private String expectedOutput;
     private int runs = 1;
+    private int judgeRuns = 10;   // how many of the N runs are sent to the judge; rest use similarity
     private Map<String, Double> thresholds;
 
     public TestCase() {}
@@ -35,6 +36,9 @@ public class TestCase {
 
     public int getRuns() { return runs; }
     public void setRuns(int runs) { this.runs = runs; }
+
+    public int getJudgeRuns() { return judgeRuns; }
+    public void setJudgeRuns(int judgeRuns) { this.judgeRuns = judgeRuns; }
 
     public Map<String, Double> getThresholds() { return thresholds; }
     public void setThresholds(Map<String, Double> thresholds) { this.thresholds = thresholds; }

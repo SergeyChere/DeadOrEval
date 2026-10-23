@@ -111,6 +111,7 @@ public class YamlConfigParser {
         tc.setUserQuery((String) raw.get("userQuery"));
         if (raw.containsKey("expectedOutput")) tc.setExpectedOutput((String) raw.get("expectedOutput"));
         if (raw.containsKey("runs")) tc.setRuns((Integer) raw.get("runs"));
+        if (raw.containsKey("judgeRuns")) tc.setJudgeRuns((Integer) raw.get("judgeRuns"));
         if (raw.containsKey("thresholds")) {
             Map<String, Object> raw_thresholds = (Map<String, Object>) raw.get("thresholds");
             Map<String, Double> thresholds = new java.util.LinkedHashMap<>();
